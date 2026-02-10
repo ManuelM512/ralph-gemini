@@ -2,7 +2,7 @@
 
 ![Ralph](ralph.webp)
 
-Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Gemini CLI](https://geminicli.com)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
 
 Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
@@ -51,7 +51,24 @@ cp -r skills/prd ~/.claude/skills/
 cp -r skills/ralph ~/.claude/skills/
 ```
 
-### Option 3: Use as Claude Code Marketplace
+### Option 3: Use as Gemini CLI extension
+
+Install the Ralph extension for [Gemini CLI](https://geminicli.com) to get the same loop with clean context per iteration, plus PRD and ralph skills:
+
+```bash
+# From this repo (after clone)
+gemini extensions link /path/to/ralph-gemini/gemini-extension
+```
+
+Then create a PRD in chat, convert it to `prd.json` (skills run automatically), and from your project root run:
+
+```bash
+~/.gemini/extensions/ralph-gemini/ralph.sh [max_iterations]
+```
+
+See [gemini-extension/README.md](gemini-extension/README.md) for full details.
+
+### Option 4: Use as Claude Code Marketplace
 
 Add the Ralph marketplace to Claude Code:
 
@@ -115,9 +132,12 @@ This creates `prd.json` with user stories structured for autonomous execution.
 
 # Using Claude Code
 ./scripts/ralph/ralph.sh --tool claude [max_iterations]
+
+# Using Gemini CLI (via extension: run from project root)
+~/.gemini/extensions/ralph-gemini/ralph.sh [max_iterations]
 ```
 
-Default is 10 iterations. Use `--tool amp` or `--tool claude` to select your AI coding tool.
+Default is 10 iterations. Use `--tool amp` or `--tool claude` to select your AI coding tool (Amp/Claude). For Gemini CLI, use the extension's ralph.sh as above.
 
 Ralph will:
 1. Create a feature branch (from PRD `branchName`)

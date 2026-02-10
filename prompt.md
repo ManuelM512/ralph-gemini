@@ -17,7 +17,8 @@ You are an autonomous coding agent working on a software project.
 
 ## Progress Report Format
 
-APPEND to progress.txt (never replace, always append):
+APPEND to progress.txt (never replace, always append).
+**IMPORTANT:** Always use the `write_file` or `replace` tool to update `progress.txt`. Do NOT use shell commands like `cat <<EOF` or heredocs — they break on backticks and special characters in the content.
 ```
 ## [Date/Time] - [Story ID]
 Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID

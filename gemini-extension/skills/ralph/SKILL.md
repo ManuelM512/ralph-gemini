@@ -33,6 +33,14 @@ Take a PRD (markdown file or text) and convert it to `prd.json` in the project r
         "Criterion 2",
         "Typecheck passes"
       ],
+      "dependencies": [
+        "src/path/to/file-this-story-touches.ts",
+        "src/path/to/another-file/"
+      ],
+      "verification_steps": [
+        "npx tsc --noEmit",
+        "npm test -- --filter relevant-test"
+      ],
       "priority": 1,
       "passes": false,
       "notes": ""
@@ -40,6 +48,11 @@ Take a PRD (markdown file or text) and convert it to `prd.json` in the project r
   ]
 }
 ```
+
+### Field Descriptions
+
+- **`dependencies`**: Array of file/directory paths this story will read or modify. Helps the agent scope its work and understand the blast radius. Use best-effort guesses based on the PRD and codebase structure. If unknown, use `["(scan codebase)"]`.
+- **`verification_steps`**: Array of shell commands to validate the story is complete. Always include the project's typecheck command. Add test commands if the story has testable logic. If the project has no tests yet, include at least `["npx tsc --noEmit"]` or the equivalent.
 
 ---
 
@@ -124,6 +137,8 @@ Frontend stories are NOT complete until visually verified. Ralph will use browse
 4. **All stories**: `passes: false` and empty `notes`
 5. **branchName**: Derive from feature name, kebab-case, prefixed with `ralph/`
 6. **Always add**: "Typecheck passes" to every story's acceptance criteria
+7. **Always add `dependencies`**: List file/directory paths the story will touch. Scan the codebase if needed.
+8. **Always add `verification_steps`**: List shell commands to validate the story (at minimum the typecheck command)
 
 ---
 
@@ -177,6 +192,8 @@ Add ability to mark tasks with different statuses.
         "Generate and run migration successfully",
         "Typecheck passes"
       ],
+      "dependencies": ["src/db/schema.ts", "src/db/migrations/"],
+      "verification_steps": ["npx tsc --noEmit", "npx drizzle-kit generate"],
       "priority": 1,
       "passes": false,
       "notes": ""
@@ -191,6 +208,8 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskCard.tsx", "src/components/StatusBadge.tsx"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 2,
       "passes": false,
       "notes": ""
@@ -206,6 +225,8 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskList.tsx", "src/actions/tasks.ts"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 3,
       "passes": false,
       "notes": ""
@@ -220,6 +241,8 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskList.tsx", "src/components/StatusFilter.tsx"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 4,
       "passes": false,
       "notes": ""
@@ -256,3 +279,5 @@ Before writing prd.json, verify:
 - [ ] UI stories have "Verify in browser using dev-browser skill" as criterion
 - [ ] Acceptance criteria are verifiable (not vague)
 - [ ] No story depends on a later story
+- [ ] Every story has `dependencies` listing files/directories it touches
+- [ ] Every story has `verification_steps` with at least the typecheck command

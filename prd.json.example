@@ -29,36 +29,6 @@
       "priority": 2,
       "passes": false,
       "notes": ""
-    },
-    {
-      "id": "US-003",
-      "title": "Add priority selector to task edit",
-      "description": "As a user, I want to change a task's priority when editing it.",
-      "acceptanceCriteria": [
-        "Priority dropdown in task edit modal",
-        "Shows current priority as selected",
-        "Saves immediately on selection change",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 3,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-004",
-      "title": "Filter tasks by priority",
-      "description": "As a user, I want to filter the task list to see only high-priority items.",
-      "acceptanceCriteria": [
-        "Filter dropdown with options: All | High | Medium | Low",
-        "Filter persists in URL params",
-        "Empty state message when no tasks match filter",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
-      ],
-      "priority": 4,
-      "passes": false,
-      "notes": ""
     }
   ]
 }

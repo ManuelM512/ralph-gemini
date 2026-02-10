@@ -84,11 +84,16 @@ Each story should be small enough to implement in one focused session.
 - [ ] Another criterion
 - [ ] Typecheck/lint passes
 - [ ] **[UI stories only]** Verify in browser using dev-browser skill
+
+**Dependencies:** src/path/to/file.ts, src/path/to/other-file.ts
+**Verification:** `npx tsc --noEmit`, `npm test -- --filter relevant`
 ```
 
 **Important:** 
 - Acceptance criteria must be verifiable, not vague. "Works correctly" is bad. "Button shows confirmation dialog before deleting" is good.
 - **For any story with UI changes:** Always include "Verify in browser using dev-browser skill" as acceptance criteria. This ensures visual verification of frontend work.
+- **Dependencies:** List the files/directories each story will likely touch. This helps the agent (and the Ralph JSON converter) scope work accurately.
+- **Verification steps:** List the shell commands needed to verify each story. At minimum include the typecheck command. Add test commands for stories with testable logic.
 
 ### 4. Functional Requirements
 Numbered list of specific functionalities:
@@ -166,6 +171,9 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 - [ ] Generate and run migration successfully
 - [ ] Typecheck passes
 
+**Dependencies:** src/db/schema.ts, src/db/migrations/
+**Verification:** `npx tsc --noEmit`, `npx drizzle-kit generate`
+
 ### US-002: Display priority indicator on task cards
 **Description:** As a user, I want to see task priority at a glance so I know what needs attention first.
 
@@ -174,6 +182,9 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 - [ ] Priority visible without hovering or clicking
 - [ ] Typecheck passes
 - [ ] Verify in browser using dev-browser skill
+
+**Dependencies:** src/components/TaskCard.tsx, src/components/PriorityBadge.tsx
+**Verification:** `npx tsc --noEmit`
 
 ### US-003: Add priority selector to task edit
 **Description:** As a user, I want to change a task's priority when editing it.
@@ -185,6 +196,9 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 - [ ] Typecheck passes
 - [ ] Verify in browser using dev-browser skill
 
+**Dependencies:** src/components/TaskEditModal.tsx, src/actions/tasks.ts
+**Verification:** `npx tsc --noEmit`
+
 ### US-004: Filter tasks by priority
 **Description:** As a user, I want to filter the task list to see only high-priority items when I'm focused.
 
@@ -194,6 +208,9 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 - [ ] Empty state message when no tasks match filter
 - [ ] Typecheck passes
 - [ ] Verify in browser using dev-browser skill
+
+**Dependencies:** src/components/TaskList.tsx, src/components/PriorityFilter.tsx
+**Verification:** `npx tsc --noEmit`
 
 ## Functional Requirements
 
@@ -236,6 +253,7 @@ Before saving the PRD:
 - [ ] Asked clarifying questions with lettered options
 - [ ] Incorporated user's answers
 - [ ] User stories are small and specific
+- [ ] Each story has Dependencies and Verification sections
 - [ ] Functional requirements are numbered and unambiguous
 - [ ] Non-goals section defines clear boundaries
 - [ ] Saved to `tasks/prd-[feature-name].md`
