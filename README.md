@@ -1,259 +1,233 @@
-# Ralph
+# Ralph Gemini -- Agentic Coding System for Gemini CLI
 
-![Ralph](ralph.webp)
-
-Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Gemini CLI](https://geminicli.com)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+Ralph Gemini is an autonomous agentic coding system that runs **Gemini CLI in a loop** with **clean context every iteration**. Each iteration is a fresh `gemini` process that picks one user story from `prd.json`, implements it, gets reviewed by a QA Auditor, and commits.
 
 Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
-[Read my in-depth article on how I use Ralph](https://x.com/ryancarson/status/2008548371712135632)
+## How It Works
+
+```
+                          ┌─────────────────────────────┐
+                          │   ralph-gemini [iterations]  │
+                          └──────────────┬──────────────┘
+                                         │
+                          ┌──────────────▼──────────────┐
+                          │  Phase 0: Architect Persona  │
+                          │  Generates architecture_spec │
+                          │  (runs once, then skipped)   │
+                          └──────────────┬──────────────┘
+                                         │
+                 ┌───────────────────────▼───────────────────────┐
+                 │              For Each Iteration                │
+                 │                                               │
+                 │  1. Context Sniffer (inject error logs)       │
+                 │  2. Coding Agent (implement one story)        │
+                 │  3. QA Auditor (review changes)               │
+                 │     ├─ PASS → commit with semantic message    │
+                 │     └─ FAIL → send feedback, retry (max 2x)  │
+                 │  4. Learning Log (if retries >= 2)            │
+                 │  5. All done? → exit : next iteration         │
+                 │                                               │
+                 └───────────────────────────────────────────────┘
+```
+
+### Phase 0: Architect Persona
+
+Before the coding loop starts, a dedicated Gemini call analyzes `prd.json` and the codebase to generate `architecture_spec.md`. This file contains:
+
+- Implementation plan per story
+- File dependency map (which stories touch which files)
+- Breaking changes and risks
+- Recommended execution order
+
+Runs once. If `architecture_spec.md` already exists, this phase is skipped.
+
+### Coding Agent (per iteration)
+
+Each iteration spawns a **new** `gemini -y` process with clean context. The agent:
+
+1. Reads `prd.json`, `progress.txt`, `learning_log.md`, and `architecture_spec.md`
+2. Picks the highest-priority story where `passes: false`
+3. Scopes work using the story's `dependencies` array
+4. Implements the story
+5. Runs the story's `verification_steps` commands
+6. Commits with conventional format: `feat(US-001): description`
+7. Updates `prd.json` and appends to `progress.txt`
+
+### QA Auditor (per iteration)
+
+After the coding agent finishes, a separate Gemini call reviews the changes:
+
+- Checks acceptance criteria are met
+- Looks for logic errors, security issues, missing edge cases
+- Runs `verification_steps` independently
+- Outputs `<verdict>PASS</verdict>` or `<verdict>FAIL</verdict>` with detailed feedback
+
+If FAIL, the feedback is injected into a correction prompt and the coding agent is re-invoked (up to 2 retries per iteration).
+
+### Context Sniffer
+
+If the `RALPH_LOG_PATHS` environment variable is set, the script reads the last 50 lines of each listed log file and injects them into the prompt. This gives the agent real-time error context from your dev server, build logs, etc.
+
+```bash
+RALPH_LOG_PATHS="logs/server.log,.next/error.log" ralph-gemini 15
+```
+
+### Learning Log
+
+When a story takes 2 or more QA correction attempts, an entry is automatically appended to `learning_log.md` in the project root. Future iterations read this file to avoid repeating the same mistakes.
 
 ## Prerequisites
 
-- One of the following AI coding tools installed and authenticated:
-  - [Amp CLI](https://ampcode.com) (default)
-  - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
-- `jq` installed (`brew install jq` on macOS)
-- A git repository for your project
+- [Gemini CLI](https://geminicli.com/) installed and authenticated
+- `jq` (`brew install jq` on macOS)
+- A git repo for your project
 
-## Setup
+## Install
 
-### Option 1: Copy to your project
-
-Copy the ralph files into your project:
+From this repo (after clone):
 
 ```bash
-# From your project root
-mkdir -p scripts/ralph
-cp /path/to/ralph/ralph.sh scripts/ralph/
-
-# Copy the prompt template for your AI tool of choice:
-cp /path/to/ralph/prompt.md scripts/ralph/prompt.md    # For Amp
-# OR
-cp /path/to/ralph/CLAUDE.md scripts/ralph/CLAUDE.md    # For Claude Code
-
-chmod +x scripts/ralph/ralph.sh
+gemini extensions link /path/to/ralph-gemini
 ```
 
-### Option 2: Install skills globally (Amp)
+### Single command setup
 
-Copy the skills to your Amp or Claude config for use across all projects:
-
-For AMP
-```bash
-cp -r skills/prd ~/.config/amp/skills/
-cp -r skills/ralph ~/.config/amp/skills/
-```
-
-For Claude Code (manual)
-```bash
-cp -r skills/prd ~/.claude/skills/
-cp -r skills/ralph ~/.claude/skills/
-```
-
-### Option 3: Use as Gemini CLI extension
-
-Install the Ralph extension for [Gemini CLI](https://geminicli.com) to get the same loop with clean context per iteration, plus PRD and ralph skills:
+Create a symlink so you can run `ralph-gemini` from anywhere:
 
 ```bash
-# From this repo (after clone)
-gemini extensions link /path/to/ralph-gemini/gemini-extension
+sudo ln -s /path/to/ralph-gemini/ralph.sh /usr/local/bin/ralph-gemini
 ```
 
-Then create a PRD in chat, convert it to `prd.json` (skills run automatically), and from your project root run:
+Then from any project:
 
 ```bash
-~/.gemini/extensions/ralph-gemini/ralph.sh [max_iterations]
+cd /path/to/your/project
+ralph-gemini        # default 10 iterations
+ralph-gemini 20     # 20 iterations
 ```
-
-See [gemini-extension/README.md](gemini-extension/README.md) for full details.
-
-### Option 4: Use as Claude Code Marketplace
-
-Add the Ralph marketplace to Claude Code:
-
-```bash
-/plugin marketplace add snarktank/ralph
-```
-
-Then install the skills:
-
-```bash
-/plugin install ralph-skills@ralph-marketplace
-```
-
-Available skills after installation:
-- `/prd` - Generate Product Requirements Documents
-- `/ralph` - Convert PRDs to prd.json format
-
-Skills are automatically invoked when you ask Claude to:
-- "create a prd", "write prd for", "plan this feature"
-- "convert this prd", "turn into ralph format", "create prd.json"
-
-### Configure Amp auto-handoff (recommended)
-
-Add to `~/.config/amp/settings.json`:
-
-```json
-{
-  "amp.experimental.autoHandoff": { "context": 90 }
-}
-```
-
-This enables automatic handoff when context fills up, allowing Ralph to handle large stories that exceed a single context window.
 
 ## Workflow
 
 ### 1. Create a PRD
 
-Use the PRD skill to generate a detailed requirements document:
+In a Gemini CLI session, ask to create a PRD (the **prd** skill activates automatically):
 
-```
-Load the prd skill and create a PRD for [your feature description]
-```
+- "Create a PRD for [feature]"
+- "Write a PRD for [feature]"
 
-Answer the clarifying questions. The skill saves output to `tasks/prd-[feature-name].md`.
+The PRD includes **Dependencies** and **Verification** sections per story. Saved to `tasks/prd-[feature-name].md`.
 
-### 2. Convert PRD to Ralph format
+### 2. Convert to Ralph format
 
-Use the Ralph skill to convert the markdown PRD to JSON:
+Ask to convert the PRD to `prd.json` (the **ralph** skill activates automatically):
 
-```
-Load the ralph skill and convert tasks/prd-[feature-name].md to prd.json
-```
+- "Convert tasks/prd-[feature-name].md to prd.json"
+- "Turn this PRD into ralph format"
 
-This creates `prd.json` with user stories structured for autonomous execution.
+This creates `prd.json` with user stories including `dependencies`, `verification_steps`, and `passes: false`.
 
 ### 3. Run Ralph
 
 ```bash
-# Using Amp (default)
-./scripts/ralph/ralph.sh [max_iterations]
-
-# Using Claude Code
-./scripts/ralph/ralph.sh --tool claude [max_iterations]
-
-# Using Gemini CLI (via extension: run from project root)
-~/.gemini/extensions/ralph-gemini/ralph.sh [max_iterations]
+cd /path/to/your/project
+ralph-gemini [max_iterations]
 ```
 
-Default is 10 iterations. Use `--tool amp` or `--tool claude` to select your AI coding tool (Amp/Claude). For Gemini CLI, use the extension's ralph.sh as above.
-
 Ralph will:
-1. Create a feature branch (from PRD `branchName`)
-2. Pick the highest priority story where `passes: false`
-3. Implement that single story
-4. Run quality checks (typecheck, tests)
-5. Commit if checks pass
-6. Update `prd.json` to mark story as `passes: true`
-7. Append learnings to `progress.txt`
-8. Repeat until all stories pass or max iterations reached
 
-## Key Files
+1. Generate `architecture_spec.md` (Architect phase, runs once)
+2. Pick the highest-priority incomplete story
+3. Implement it, scoped by the story's `dependencies`
+4. Run the story's `verification_steps`
+5. QA Auditor reviews; retries if FAIL (up to 2x)
+6. Commit with semantic format: `feat(US-001): description`
+7. Update `prd.json` and `progress.txt`
+8. Log to `learning_log.md` if the story was difficult
+9. Repeat until all stories pass or max iterations reached
+
+## Files
 
 | File | Purpose |
 |------|---------|
-| `ralph.sh` | The bash loop that spawns fresh AI instances (supports `--tool amp` or `--tool claude`) |
-| `prompt.md` | Prompt template for Amp |
-| `CLAUDE.md` | Prompt template for Claude Code |
-| `prd.json` | User stories with `passes` status (the task list) |
-| `prd.json.example` | Example PRD format for reference |
-| `progress.txt` | Append-only learnings for future iterations |
-| `skills/prd/` | Skill for generating PRDs (works with Amp and Claude Code) |
-| `skills/ralph/` | Skill for converting PRDs to JSON (works with Amp and Claude Code) |
-| `.claude-plugin/` | Plugin manifest for Claude Code marketplace discovery |
-| `flowchart/` | Interactive visualization of how Ralph works |
+| `ralph.sh` | Main loop script: architect phase, coding iterations, QA auditor, context sniffer, learning log |
+| `prompt.md` | Instructions for each coding iteration (reads PRD, implements story, runs checks, commits) |
+| `architect_prompt.md` | Instructions for the Architect phase (analyzes codebase, generates implementation plan) |
+| `qa_auditor_prompt.md` | Instructions for the QA Auditor (reviews code changes, outputs PASS/FAIL verdict) |
+| `skills/prd/` | Skill to generate PRDs with dependencies and verification steps |
+| `skills/ralph/` | Skill to convert PRD markdown to `prd.json` with enhanced schema |
+| `prd.json.example` | Example PRD format with `dependencies` and `verification_steps` |
+| `GEMINI.md` | Context file loaded by Gemini CLI when extension is active |
 
-## Flowchart
+### Files generated in project root (during a run)
 
-[![Ralph Flowchart](ralph-flowchart.png)](https://snarktank.github.io/ralph/)
+| File | Purpose |
+|------|---------|
+| `prd.json` | User stories with status (created via ralph skill) |
+| `progress.txt` | Append-only log with learnings and codebase patterns |
+| `architecture_spec.md` | Implementation plan from Architect phase |
+| `learning_log.md` | Auto-generated entries for bugs that took multiple attempts |
 
-**[View Interactive Flowchart](https://snarktank.github.io/ralph/)** - Click through to see each step with animations.
+## PRD JSON Schema
 
-The `flowchart/` directory contains the source code. To run locally:
+Each user story in `prd.json` has:
 
-```bash
-cd flowchart
-npm install
-npm run dev
+```json
+{
+  "id": "US-001",
+  "title": "Add priority field to database",
+  "description": "As a developer, I need to store task priority.",
+  "acceptanceCriteria": [
+    "Add priority column to tasks table",
+    "Typecheck passes"
+  ],
+  "dependencies": ["src/db/schema.ts", "src/db/migrations/"],
+  "verification_steps": ["npx tsc --noEmit", "npm test"],
+  "priority": 1,
+  "passes": false,
+  "notes": ""
+}
 ```
 
-## Critical Concepts
+- **`dependencies`** -- Files/directories the story touches. Helps the agent scope its work.
+- **`verification_steps`** -- Shell commands to validate the story. Run by both the coding agent and the QA auditor.
 
-### Each Iteration = Fresh Context
+## Clean Context Per Task
 
-Each iteration spawns a **new AI instance** (Amp or Claude Code) with clean context. The only memory between iterations is:
-- Git history (commits from previous iterations)
-- `progress.txt` (learnings and context)
+Each iteration is a **new** Gemini process. The only memory across iterations is:
+
+- Git history (commits from previous runs)
+- `progress.txt` (learnings and Codebase Patterns)
 - `prd.json` (which stories are done)
-
-### Small Tasks
-
-Each PRD item should be small enough to complete in one context window. If a task is too big, the LLM runs out of context before finishing and produces poor code.
-
-Right-sized stories:
-- Add a database column and migration
-- Add a UI component to an existing page
-- Update a server action with new logic
-- Add a filter dropdown to a list
-
-Too big (split these):
-- "Build the entire dashboard"
-- "Add authentication"
-- "Refactor the API"
-
-### AGENTS.md Updates Are Critical
-
-After each iteration, Ralph updates the relevant `AGENTS.md` files with learnings. This is key because AI coding tools automatically read these files, so future iterations (and future human developers) benefit from discovered patterns, gotchas, and conventions.
-
-Examples of what to add to AGENTS.md:
-- Patterns discovered ("this codebase uses X for Y")
-- Gotchas ("do not forget to update Z when changing W")
-- Useful context ("the settings panel is in component X")
-
-### Feedback Loops
-
-Ralph only works if there are feedback loops:
-- Typecheck catches type errors
-- Tests verify behavior
-- CI must stay green (broken code compounds across iterations)
-
-### Browser Verification for UI Stories
-
-Frontend stories must include "Verify in browser using dev-browser skill" in acceptance criteria. Ralph will use the dev-browser skill to navigate to the page, interact with the UI, and confirm changes work.
-
-### Stop Condition
-
-When all stories have `passes: true`, Ralph outputs `<promise>COMPLETE</promise>` and the loop exits.
-
-## Debugging
-
-Check current state:
-
-```bash
-# See which stories are done
-cat prd.json | jq '.userStories[] | {id, title, passes}'
-
-# See learnings from previous iterations
-cat progress.txt
-
-# Check git history
-git log --oneline -10
-```
-
-## Customizing the Prompt
-
-After copying `prompt.md` (for Amp) or `CLAUDE.md` (for Claude Code) to your project, customize it for your project:
-- Add project-specific quality check commands
-- Include codebase conventions
-- Add common gotchas for your stack
+- `architecture_spec.md` (implementation plan)
+- `learning_log.md` (known pitfalls)
 
 ## Archiving
 
-Ralph automatically archives previous runs when you start a new feature (different `branchName`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
+Ralph automatically archives previous runs when you start a new feature (different `branchName` in `prd.json`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
 
-## References
+## Debugging
 
-- [Geoffrey Huntley's Ralph article](https://ghuntley.com/ralph/)
-- [Amp documentation](https://ampcode.com/manual)
-- [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code)
+```bash
+# Stories and status
+cat prd.json | jq '.userStories[] | {id, title, passes}'
+
+# Progress log
+cat progress.txt
+
+# Learning log (difficult bugs)
+cat learning_log.md
+
+# Architecture spec
+cat architecture_spec.md
+
+# Recent commits
+git log --oneline -10
+```
+
+## Customizing
+
+- **`RALPH_EXTENSION_DIR`** -- Set this env var to override the extension directory (where `prompt.md` lives).
+- **`RALPH_LOG_PATHS`** -- Comma-separated log files for the Context Sniffer.
+- **Quality checks** -- The prompt is generic; your project's `verification_steps` in `prd.json` define the actual checks.
+- **Max QA retries** -- Edit `MAX_QA_RETRIES` in `ralph.sh` (default: 2).

@@ -6,13 +6,13 @@ user-invocable: true
 
 # Ralph PRD Converter
 
-Converts existing PRDs to the prd.json format that Ralph uses for autonomous execution.
+Converts existing PRDs to the prd.json format that Ralph uses for autonomous execution with Gemini CLI.
 
 ---
 
 ## The Job
 
-Take a PRD (markdown file or text) and convert it to `prd.json` in your ralph directory.
+Take a PRD (markdown file or text) and convert it to `prd.json` in the project root (or current directory).
 
 ---
 
@@ -33,6 +33,14 @@ Take a PRD (markdown file or text) and convert it to `prd.json` in your ralph di
         "Criterion 2",
         "Typecheck passes"
       ],
+      "dependencies": [
+        "src/path/to/file-this-story-touches.ts",
+        "src/path/to/another-file/"
+      ],
+      "verification_steps": [
+        "npx tsc --noEmit",
+        "npm test -- --filter relevant-test"
+      ],
       "priority": 1,
       "passes": false,
       "notes": ""
@@ -41,13 +49,18 @@ Take a PRD (markdown file or text) and convert it to `prd.json` in your ralph di
 }
 ```
 
+### Field Descriptions
+
+- **`dependencies`**: Array of file/directory paths this story will read or modify. Helps the agent scope its work and understand the blast radius. Use best-effort guesses based on the PRD and codebase structure. If unknown, use `["(scan codebase)"]`.
+- **`verification_steps`**: Array of shell commands to validate the story is complete. Always include the project's typecheck command. Add test commands if the story has testable logic. If the project has no tests yet, include at least `["npx tsc --noEmit"]` or the equivalent.
+
 ---
 
 ## Story Size: The Number One Rule
 
 **Each story must be completable in ONE Ralph iteration (one context window).**
 
-Ralph spawns a fresh Amp instance per iteration with no memory of previous work. If a story is too big, the LLM runs out of context before finishing and produces broken code.
+Ralph runs a fresh Gemini CLI process per iteration with clean context. If a story is too big, the model runs out of context before finishing and produces broken code.
 
 ### Right-sized stories:
 - Add a database column and migration
@@ -112,7 +125,7 @@ For stories with testable logic, also include:
 "Verify in browser using dev-browser skill"
 ```
 
-Frontend stories are NOT complete until visually verified. Ralph will use the dev-browser skill to navigate to the page, interact with the UI, and confirm changes work.
+Frontend stories are NOT complete until visually verified. Ralph will use browser tools when available to verify the UI.
 
 ---
 
@@ -124,6 +137,8 @@ Frontend stories are NOT complete until visually verified. Ralph will use the de
 4. **All stories**: `passes: false` and empty `notes`
 5. **branchName**: Derive from feature name, kebab-case, prefixed with `ralph/`
 6. **Always add**: "Typecheck passes" to every story's acceptance criteria
+7. **Always add `dependencies`**: List file/directory paths the story will touch. Scan the codebase if needed.
+8. **Always add `verification_steps`**: List shell commands to validate the story (at minimum the typecheck command)
 
 ---
 
@@ -161,7 +176,7 @@ Add ability to mark tasks with different statuses.
 - Persist status in database
 ```
 
-**Output prd.json:**
+**Output prd.json:** (save in project root)
 ```json
 {
   "project": "TaskApp",
@@ -177,6 +192,8 @@ Add ability to mark tasks with different statuses.
         "Generate and run migration successfully",
         "Typecheck passes"
       ],
+      "dependencies": ["src/db/schema.ts", "src/db/migrations/"],
+      "verification_steps": ["npx tsc --noEmit", "npx drizzle-kit generate"],
       "priority": 1,
       "passes": false,
       "notes": ""
@@ -191,6 +208,8 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskCard.tsx", "src/components/StatusBadge.tsx"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 2,
       "passes": false,
       "notes": ""
@@ -206,6 +225,8 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskList.tsx", "src/actions/tasks.ts"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 3,
       "passes": false,
       "notes": ""
@@ -220,6 +241,8 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskList.tsx", "src/components/StatusFilter.tsx"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 4,
       "passes": false,
       "notes": ""
@@ -241,7 +264,7 @@ Add ability to mark tasks with different statuses.
    - Copy current `prd.json` and `progress.txt` to archive
    - Reset `progress.txt` with fresh header
 
-**The ralph.sh script handles this automatically** when you run it, but if you are manually updating prd.json between runs, archive first.
+**The ralph.sh script (in the ralph-gemini extension) handles this automatically** when you run it, but if you are manually updating prd.json between runs, archive first.
 
 ---
 
@@ -256,3 +279,5 @@ Before writing prd.json, verify:
 - [ ] UI stories have "Verify in browser using dev-browser skill" as criterion
 - [ ] Acceptance criteria are verifiable (not vague)
 - [ ] No story depends on a later story
+- [ ] Every story has `dependencies` listing files/directories it touches
+- [ ] Every story has `verification_steps` with at least the typecheck command

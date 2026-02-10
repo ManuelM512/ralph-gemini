@@ -12,6 +12,8 @@
         "Generate and run migration successfully",
         "Typecheck passes"
       ],
+      "dependencies": ["src/db/schema.ts", "src/db/migrations/"],
+      "verification_steps": ["npx tsc --noEmit", "npx drizzle-kit generate"],
       "priority": 1,
       "passes": false,
       "notes": ""
@@ -26,6 +28,8 @@
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
+      "dependencies": ["src/components/TaskCard.tsx", "src/components/PriorityBadge.tsx"],
+      "verification_steps": ["npx tsc --noEmit"],
       "priority": 2,
       "passes": false,
       "notes": ""
