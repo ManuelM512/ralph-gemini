@@ -1,0 +1,6 @@
+{
+  "name": "ralph-gemini",
+  "version": "1.0.0",
+  "description": "Ralph autonomous agent loop for Gemini CLI: run AI coding in repeated iterations with clean context per task. Uses prd.json, progress.txt, and git for memory.",
+  "contextFileName": "GEMINI.md"
+}

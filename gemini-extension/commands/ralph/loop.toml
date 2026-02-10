@@ -1,0 +1,8 @@
+# Run the Ralph loop from the current workspace (clean context per iteration).
+# Requires: prd.json and progress.txt in workspace; jq installed; extension at ~/.gemini/extensions/ralph-gemini
+description = "Run Ralph loop from workspace (fresh Gemini process per iteration). Use after creating prd.json."
+prompt = """
+Run the Ralph loop from the current workspace. Execute the script with max 10 iterations and report the outcome.
+The script runs each iteration as a new Gemini process for clean context.
+!{RALPH_EXTENSION_DIR="${HOME}/.gemini/extensions/ralph-gemini" "${HOME}/.gemini/extensions/ralph-gemini/ralph.sh" 10}
+"""
